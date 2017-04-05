@@ -9,7 +9,7 @@ class MSerial:
     axis_names = dict(x=0, y=1)
     unit = dict(x=1, y=1)
     
-    def __init__(self, port, echo=True, max_retry=2, wait=0.1, **serial_kws):
+    def __init__(self, port, echo=True, max_retry=2, wait=0.1, sendwidget=None, recvwidget=None, **serial_kws):
         kws = dict(baudrate=19200, bytesize=serial.EIGHTBITS, 
                    parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, 
                    timeout=0, xonxoff=True, rtscts=False, dsrdtr=False)
@@ -17,6 +17,8 @@ class MSerial:
         self.serial = serial.Serial(port, **kws)
         self.echo = echo
         self.wait = wait
+        self.sendwidget = sendwidget
+        self.recvwidget = recvwidget
 
     def send(self, cmd):
         """Send a command to the picomotor driver."""
@@ -24,20 +26,26 @@ class MSerial:
         retval = self.serial.write(bytes(line, encoding='ascii'))
         self.serial.flush()
         if self.echo:
-            print('Sent "%s"' % cmd, flush=True)
+            self.log(cmd, widget=self.sendwidget)
         return retval
     
     def readlines(self):
         """Read response from picomotor driver."""
         return ''.join([l.decode('ASCII') for l in self.serial.readlines()])
     
+    def log(self, msg, widget=None):
+        if widget is None:
+            print(msg, flush=True)
+        else:
+            widget.value = msg
+        
     def sendrecv(self, cmd):
         """Send a command and (optionally) printing the picomotor driver's response."""
         res = self.send(cmd) 
         if self.echo:
             time.sleep(self.wait)
             ret_str = self.readlines()
-            print(ret_str, flush=True)
+            self.log(ret_str, widget=self.recvwidget)
         return res
 
     def set_axis(self, axis, vel=None, acc=None, driver='a1'):
@@ -90,7 +98,7 @@ class MSerial:
         time.sleep(self.wait)
         ret_str = self.readlines()
         if self.echo:
-            print(repr(ret_str), flush=True)
+            self.log(repr(ret_str), widget=self.recvwidget)
         return ret_str
     
     def status(self):
